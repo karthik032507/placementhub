@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.local
+dist/
+.vercel/
+.DS_Store
+Thumbs.db
+
+# Personal study material, not part of the project
+Interview Guide/
