@@ -1,281 +1,229 @@
-# PlacementHub – College Placement Management Portal
+# PlacementHub
 
-A MERN-style web application for a college placement cell. Students browse companies and apply with a resume, administrators manage companies and applicants, and super admins manage administrator accounts.
+A placement management portal for a college placement cell. Students browse companies and apply
+with a saved resume; the placement cell manages drives, reviews applicants and moves each
+application through its hiring stages.
 
-The code is intentionally simple: **Routes → Middleware → Controllers → Models** on the backend, and **React + React Router + Axios + plain CSS** on the frontend. Every important decision is explained in this file and in short comments in the code.
+**[Live demo](https://placementhub-opal.vercel.app)** &nbsp;·&nbsp;
+[API health check](https://placementhub-api-tst5.onrender.com/api/health)
+
+> The API runs on a free Render instance, which sleeps after 15 minutes idle.
+> The first request can take up to a minute to wake it.
+
+### Try it
+
+| Role | Email | Password | Sign in with |
+| ---- | ----- | -------- | ------------ |
+| Student | `karthikeya.m24@iiits.in` | `Password@123` | Student tab |
+| Admin | `admin@iiits.in` | `Password@123` | Admin tab |
+| Super Admin | `superadmin@iiits.in` | `Password@123` | Admin tab |
+
+All of it is sample data. Super Admins sign in through the Admin tab; the backend decides what
+you can do from the role stored against your account.
 
 ---
 
-## Features
+## Screenshots
 
-**Students**
-- Register with a college email (`@iiits.in` only) and log in
-- Browse companies as cards, search by company or role, filter open/closed
-- View company details and apply with a PDF resume (confirmed with the account password)
-- Track all applications, withdraw while the status is still *Applied*
-- Receive notifications (new company, status changes, company updates) with unread badge, dropdown and full page
-- Update profile (name, roll number, branch, CGPA)
+| Companies | Company details |
+| --- | --- |
+| ![Companies](docs/screenshots/02-companies.png) | ![Company details](docs/screenshots/03-company-details.png) |
 
-**Admins**
-- Create, edit and close companies (closing keeps all history)
-- View applicants per company with **search** (name / roll number / email), **filters** (branch, status) and **sorting** (CGPA, application date), all executed by the backend
-- Download applicant resumes
-- Change an application status one student at a time (Applied → Shortlisted → Selected, or → Rejected); the student is notified automatically
-- Send a company-specific update to *active* applicants only
+| Applicant review (admin) | Dark mode |
+| --- | --- |
+| ![Applicants](docs/screenshots/04-applicants.png) | ![Dark mode](docs/screenshots/05-dark-mode.png) |
 
-**Super Admins** – everything an Admin can do, plus:
-- List, create and deactivate Admin / Super Admin accounts
-- Cannot deactivate themselves or the last active Super Admin
+---
 
-**Everyone**
-- Light and dark mode (persisted), collapsible hover sidebar, mobile drawer navigation, consistent design system
+## What it does
+
+**Students** register with a college `@iiits.in` email, complete their profile with roll number,
+branch and CGPA, and keep up to five labelled PDF resumes. They browse companies, apply by
+choosing which resume to send, confirm with their password, track every application, and
+withdraw while an application is still pending.
+
+**Admins** create and edit companies, attach a job-description PDF, and review applicants with
+search, branch and status filters and CGPA sorting. They download resumes and move an
+application from Applied to Shortlisted to Selected, or reject it. Every change notifies the
+student.
+
+**Super Admins** do everything an Admin can, plus create and deactivate administrator accounts.
 
 ---
 
 ## Tech stack
 
-| Layer    | Technology                                                       |
-| -------- | ---------------------------------------------------------------- |
-| Frontend | React 19, React Router 7, Axios, lucide-react icons, plain CSS    |
-| Backend  | Node.js, Express 5, Mongoose 9, MongoDB                          |
-| Auth     | JSON Web Tokens (access token), bcrypt password hashing          |
-| Uploads  | Multer in memory, PDF bytes stored in MongoDB (5 MB max)         |
-| Tests    | Node's built-in test runner + `mongodb-memory-server` (dev only) |
+| Layer | Choice |
+| ----- | ------ |
+| Frontend | React 19, React Router 7, Axios, plain CSS with light and dark themes |
+| Backend | Node.js, Express 5, Mongoose 9 |
+| Database | MongoDB Atlas |
+| Auth | JWT access tokens, bcrypt password hashing |
+| Uploads | Multer in memory, PDF bytes stored in MongoDB |
+| Build | Vite 8 |
+| Tests | Node's built-in test runner with `mongodb-memory-server` |
+| Hosting | Vercel (frontend), Render (API) |
 
-No sockets, Redis, Redux, GraphQL, email or payment services.
-
----
-
-## Folder structure
-
-```
-Project1/
-├── server/
-│   ├── app.js                  # Express app: middleware + route mounting (no listen)
-│   ├── server.js               # Loads .env, connects MongoDB, starts the server
-│   ├── seed.js                 # Development seed data (npm run seed)
-│   ├── dev-memory.js           # Run API + seed on an in-memory MongoDB (npm run dev:memory)
-│   ├── config/db.js            # mongoose.connect
-│   ├── models/                 # User, Company, Application, Notification, StoredFile
-│   ├── middleware/
-│   │   ├── auth.js             # Verifies JWT, loads user, sets req.user = { id, role }
-│   │   ├── requireRole.js      # requireRole("ADMIN", "SUPER_ADMIN")
-│   │   ├── upload.js           # Multer (memory) + save/copy/send a PDF in MongoDB
-│   │   └── errorHandler.js     # 404 + central error → { success:false, message }
-│   ├── controllers/            # One file per resource; all business rules live here
-│   ├── routes/                 # URL → middleware chain → controller
-│   ├── utils/                  # httpError() helper and small validators
-│   └── tests/api.test.js       # End-to-end API tests (33 tests)
-└── client/
-    ├── vite.config.js          # Dev proxy: /api → http://localhost:5000
-    └── src/
-        ├── api/axios.js        # Axios instance, attaches Bearer token, handles 401
-        ├── context/            # AuthContext, ThemeContext, ToastContext
-        ├── hooks/useNotifications.js
-        ├── components/
-        │   ├── ProtectedRoute.jsx      # Frontend route guard (UI only)
-        │   ├── layout/                 # AppLayout, Sidebar, TopBar, NotificationDropdown
-        │   └── ui/                     # Modal, ConfirmDialog, StatusBadge, EmptyState
-        ├── pages/
-        │   ├── auth/                   # LoginPage, RegisterPage
-        │   ├── CompaniesPage.jsx, CompanyDetailsPage.jsx, NotificationsPage.jsx, ProfilePage.jsx
-        │   ├── student/                # ApplyModal, MyApplicationsPage
-        │   ├── admin/                  # CompanyFormPage, ApplicantsPage, CompanyUpdatesPage, SendUpdateModal
-        │   └── superadmin/AdministratorsPage.jsx
-        ├── styles/                     # global.css (design tokens), layout.css, auth.css, pages.css
-        └── utils/                      # format.js, download.js
-```
+No Redux, no Socket.IO, no component library. Shared state is three small React contexts.
 
 ---
 
-## Environment variables
-
-`server/.env` (copy from `server/.env.example`):
+## Architecture
 
 ```
-MONGO_URI=mongodb://127.0.0.1:27017/placement_portal
-JWT_SECRET=replace_with_a_long_random_secret
-JWT_EXPIRES_IN=1d
-PORT=5000
-CLIENT_URL=http://localhost:5173
-NODE_ENV=development
+Browser ──► React (Vercel) ──► Axios adds "Authorization: Bearer <jwt>"
+                                        │
+                                        ▼
+                    Express (Render):  route → auth → requireRole → controller
+                                        │
+                                        ▼
+                             Mongoose ──► MongoDB Atlas
 ```
 
-`client/.env` is optional. Leave `VITE_API_URL` empty in development so the Vite proxy is used.
+The backend follows **Routes → Middleware → Controllers → Models**. Authentication and
+authorization are deliberately separate: `middleware/auth.js` answers "who is this?" and
+`middleware/requireRole.js` answers "are they allowed?".
 
-Never commit `.env`.
+```
+server/
+├── server.js                 starts the app: loads .env, connects, listens
+├── app.js                    builds the Express app and mounts the route files
+├── models/                   User, Company, Application, Notification, StoredFile
+├── middleware/               auth, requireRole, upload, errorHandler
+├── controllers/              all the business rules live here
+├── routes/                   URL → middleware chain → controller
+├── utils/                    httpError helper, validators
+└── tests/api.test.js         37 end-to-end API tests
+
+client/src/
+├── App.jsx                   routes, and which roles may see them
+├── api/axios.js              one Axios instance, attaches the token
+├── context/                  AuthContext, ThemeContext, ToastContext
+├── components/               ProtectedRoute, layout/, ui/
+├── pages/                    auth/, student/, admin/, superadmin/
+└── styles/                   CSS variables drive both themes
+```
 
 ---
 
-## MongoDB setup
+## Decisions worth explaining
 
-Option A – local MongoDB Community Server: install it, make sure it listens on `127.0.0.1:27017`, keep the default `MONGO_URI`.
+**A student cannot apply twice, and the database guarantees it.** The controller checks for an
+existing application, but that check has a race window. The real guarantee is a compound unique
+index on `{ student, company }`; MongoDB rejects the second write and the error handler turns
+duplicate-key error 11000 into a clean `409`.
 
-Option B – MongoDB Atlas: create a free cluster, add your IP, create a database user and paste the connection string into `MONGO_URI`.
+**The token is an ID card, not a source of truth.** The JWT carries only a user id and role, and
+`auth.js` re-reads the user from the database on every request. A deactivated account stops
+working immediately rather than when the token expires, and the client can never claim a role it
+does not have.
 
-Option C – no MongoDB installed: `npm run dev:memory` in `server/` starts a temporary in-memory MongoDB, seeds it and runs the API. Data disappears when the process stops. This only uses the dev dependency `mongodb-memory-server`.
+**Applying copies the PDF.** An application stores its own copy of the resume, so deleting a
+resume from a profile later cannot break an application that has already been submitted.
+
+**PDFs live in MongoDB, not on disk.** Free hosting gives you an ephemeral filesystem that is
+wiped on every restart, so an uploaded resume would disappear within days. Storing the bytes in a
+`storedfiles` collection keeps uploads working across restarts and across multiple instances. At
+real scale the right answer is object storage such as S3, with only the URL in the database.
+
+**Query parameters are validated, not trusted.** Sort fields are checked against an allow-list,
+and search input is regex-escaped before it reaches a query.
 
 ---
 
-## Install and run
+## Running locally
 
 ```bash
-# 1. Backend
+# 1. API — http://localhost:5000
 cd server
 npm install
-cp .env.example .env        # then edit JWT_SECRET / MONGO_URI
-npm run seed                # creates sample users + companies (wipes the database!)
-npm run dev                 # http://localhost:5000   (nodemon)
+cp .env.example .env        # then fill in MONGO_URI and JWT_SECRET
+npm run seed                # sample data. WARNING: wipes the database first
+npm run dev
 
-# 2. Frontend (new terminal)
+# 2. Frontend — http://localhost:5173
 cd client
 npm install
-npm run dev                 # http://localhost:5173
+npm run dev
 ```
 
-Other scripts (in `server/`):
+No MongoDB installed? `npm run dev:memory` in `server/` starts a temporary in-memory database,
+seeds it, and runs the API against it.
 
-| Script               | What it does                                             |
-| -------------------- | -------------------------------------------------------- |
-| `npm start`          | Run the API with plain `node`                            |
-| `npm run seed`       | Reset and seed the configured database                   |
-| `npm run dev:memory` | API + seed on an in-memory MongoDB (no install needed)   |
-| `npm test`           | Run the 33 end-to-end API tests on an in-memory MongoDB  |
+| Script (in `server/`) | What it does |
+| --------------------- | ------------ |
+| `npm run dev` | API with auto-reload |
+| `npm test` | 37 API tests, no database setup needed |
+| `npm run seed` | Reset and seed the configured database |
+| `npm run seed:superadmin` | Create or reset only the super admin, deleting nothing |
+| `npm run dev:memory` | API plus seed data on a throwaway in-memory database |
 
-### Seed accounts
+### Environment variables
 
-Password for all seeded accounts: `Password@123`
+`server/.env`:
 
-| Role        | Email                     |
-| ----------- | ------------------------- |
-| SUPER_ADMIN | superadmin@iiits.in       |
-| ADMIN       | admin@iiits.in            |
-| STUDENT     | karthikeya.m24@iiits.in   |
-| STUDENT     | ananya.r22@iiits.in       |
-| STUDENT     | rohit.v22@iiits.in        |
+| Variable | Purpose |
+| -------- | ------- |
+| `MONGO_URI` | MongoDB connection string |
+| `JWT_SECRET` | Signs and verifies tokens |
+| `JWT_EXPIRES_IN` | Token lifetime, e.g. `1d` |
+| `PORT` | Defaults to 5000 |
+| `CLIENT_URL` | Allowed CORS origins, comma-separated |
+| `NODE_ENV` | `production` hides error detail from responses |
 
-Super Admins log in through the **Admin** tab. The seed is for development only.
-
-### Creating the first Super Admin without the seed
-
-Run `npm run seed` once, or insert a user directly in MongoDB with `role: "SUPER_ADMIN"` and a bcrypt-hashed password. There is deliberately no public "create super admin" page.
+`client/.env` needs `VITE_API_URL` only in production. Locally, Vite proxies `/api` to port 5000.
 
 ---
 
-## API overview
+## API
 
-All responses have the shape `{ success, message?, data? }`. Protected routes need `Authorization: Bearer <token>`.
+Every response is `{ success, message?, data? }`. Protected routes need a valid token.
 
-| Method | Route                                         | Who                  | Purpose                                                    |
-| ------ | --------------------------------------------- | -------------------- | ---------------------------------------------------------- |
-| POST   | `/api/auth/register`                          | public               | Student registration (`@iiits.in` only)                    |
-| POST   | `/api/auth/login`                             | public               | Login; body `{ email, password, loginAs: STUDENT\|ADMIN }` |
-| GET    | `/api/auth/me`                                | any user             | Current user from the verified token                       |
-| GET    | `/api/users/profile`                          | any user             | Own profile                                                |
-| PUT    | `/api/users/profile`                          | any user             | Update name / rollNumber / branch / cgpa                   |
-| GET    | `/api/companies`                              | any user             | List companies (+ own application status / applicant count)|
-| GET    | `/api/companies/:id`                          | any user             | Company details                                            |
-| POST   | `/api/companies`                              | ADMIN, SUPER_ADMIN   | Create company → NEW_COMPANY notification to students      |
-| PUT    | `/api/companies/:id`                          | ADMIN, SUPER_ADMIN   | Edit company                                               |
-| PATCH  | `/api/companies/:id/close`                    | ADMIN, SUPER_ADMIN   | Close company                                              |
-| GET    | `/api/companies/:companyId/applications`      | ADMIN, SUPER_ADMIN   | Applicants; `?search=&branch=&status=&sortBy=cgpa\|appliedAt&order=asc\|desc` |
-| POST   | `/api/companies/:companyId/notifications`     | ADMIN, SUPER_ADMIN   | Message active applicants                                  |
-| POST   | `/api/applications`                           | STUDENT              | Apply: multipart `companyId`, `password`, `resume` (PDF)   |
-| GET    | `/api/applications/my`                        | STUDENT              | Own applications                                           |
-| PATCH  | `/api/applications/:id/withdraw`              | STUDENT (owner)      | APPLIED → WITHDRAWN                                        |
-| PATCH  | `/api/applications/:id/status`                | ADMIN, SUPER_ADMIN   | Change status → notification to the student                |
-| GET    | `/api/applications/:id/resume`                | owner or admins      | Download the resume PDF                                    |
-| GET    | `/api/notifications`                          | any user             | Own notifications, newest first, with `unreadCount`        |
-| PATCH  | `/api/notifications/:id/read`                 | owner                | Mark one as read                                           |
-| PATCH  | `/api/notifications/read-all`                 | any user             | Mark all own notifications read                            |
-| GET    | `/api/admin/users`                            | SUPER_ADMIN          | List administrators                                        |
-| POST   | `/api/admin/users`                            | SUPER_ADMIN          | Create ADMIN or SUPER_ADMIN                                |
-| PATCH  | `/api/admin/users/:id/deactivate`             | SUPER_ADMIN          | Soft-deactivate an administrator                           |
+| Method | Route | Purpose | Who |
+| ------ | ----- | ------- | --- |
+| POST | `/api/auth/register` | Create a student account | Public |
+| POST | `/api/auth/login` | Sign in, returns a token | Public |
+| GET | `/api/auth/me` | Current user | Any |
+| GET, PUT | `/api/users/profile` | Read or update own profile | Any |
+| POST | `/api/users/resumes` | Save a resume, max 5 | Student |
+| DELETE | `/api/users/resumes/:id` | Remove a saved resume | Student |
+| GET | `/api/users/resumes/:id/download` | Download own resume | Student |
+| GET | `/api/companies` | List companies | Any |
+| GET | `/api/companies/:id` | One company | Any |
+| POST, PUT | `/api/companies`, `/api/companies/:id` | Create or edit | Admin |
+| PATCH | `/api/companies/:id/close` | Stop new applications | Admin |
+| POST, DELETE, GET | `/api/companies/:id/job-description` | Manage the JD PDF | Admin, any to read |
+| GET | `/api/companies/:id/applications` | Applicants, with search, filter and sort | Admin |
+| POST | `/api/companies/:id/notifications` | Message active applicants | Admin |
+| POST | `/api/applications` | Apply to a company | Student |
+| GET | `/api/applications/my` | Own applications | Student |
+| PATCH | `/api/applications/:id/withdraw` | Withdraw while pending | Owner |
+| PATCH | `/api/applications/:id/status` | Change status, notifies the student | Admin |
+| GET | `/api/applications/:id/resume` | Download the attached resume | Owner or Admin |
+| GET | `/api/notifications` | Own notifications and unread count | Any |
+| PATCH | `/api/notifications/:id/read`, `/read-all` | Mark as read | Owner |
+| GET, POST | `/api/admin/users` | List or create administrators | Super Admin |
+| PATCH | `/api/admin/users/:id/deactivate` | Deactivate an administrator | Super Admin |
 
-### HTTP status codes
-
-200 success · 201 created · 400 invalid input / business rule · 401 not authenticated (missing, invalid, expired token, inactive account) · 403 authenticated but not allowed · 404 not found · 409 conflict (duplicate email or duplicate application) · 500 unexpected error (stack trace only in the server log).
-
----
-
-## Roles and permissions
-
-| Action                                        | STUDENT | ADMIN | SUPER_ADMIN |
-| --------------------------------------------- | :-----: | :---: | :---------: |
-| Register                                      |    ✓    |       |             |
-| View companies / details                      |    ✓    |   ✓   |      ✓      |
-| Apply, withdraw, view own applications        |    ✓    |       |             |
-| View / mark own notifications                 |    ✓    |       |             |
-| Update own profile                            |    ✓    |   ✓   |      ✓      |
-| Create / edit / close companies               |         |   ✓   |      ✓      |
-| View, search, filter, sort applicants         |         |   ✓   |      ✓      |
-| Change application status                     |         |   ✓   |      ✓      |
-| Send company-specific notifications           |         |   ✓   |      ✓      |
-| List / create / deactivate administrators     |         |       |      ✓      |
-
-There is no Super Admin login tab; Super Admins use the Admin tab. The backend reads the real role from the database on every request.
+Status codes: `200` ok, `201` created, `400` invalid input or broken rule, `401` not
+authenticated, `403` authenticated but not allowed, `404` not found, `409` duplicate.
 
 ---
 
-## Important business rules
+## Business rules
 
-1. Student emails must end with `@iiits.in` (validated on the backend, mirrored in the UI).
-2. Passwords are at least 8 characters and stored as bcrypt hashes; the hash is never returned (`select: false` + `toSafeObject()`).
-3. A student can apply to many companies but only **once per company**. Enforced by a check *and* a compound unique index `{ student: 1, company: 1 }` → 409 on a race.
-4. A withdrawn application still occupies that index, so the student cannot apply again.
-5. Applications are rejected by the backend when the company is CLOSED or `now >= applicationDeadline`, even if a stale page still shows *Apply Now*.
-6. Applying requires a PDF resume (MIME type + extension checked, 5 MB max, generated file name) **and** the student's password re-entered. If any check fails the uploaded file is deleted.
-7. The resume belongs to the application, not the student. Applying copies the stored PDF, so deleting a resume from the profile later never touches a submitted application. Uploaded PDFs live in the `storedfiles` collection in MongoDB, not on the server disk, so they survive a restart on a host with an ephemeral filesystem.
-8. Status transitions: `APPLIED → SHORTLISTED → SELECTED`, `APPLIED/SHORTLISTED → REJECTED`, `APPLIED → WITHDRAWN` (student only). Anything else is 400.
-9. Every admin status change stores an APPLICATION_STATUS notification for that student.
-10. Creating a company stores a NEW_COMPANY notification for every active student.
-11. Company updates go only to APPLIED / SHORTLISTED / SELECTED applicants. With no active applicants the API returns `sent: 0` and says so.
-12. Notifications are plain MongoDB documents fetched over REST; there is no real-time layer.
-13. Companies are closed, never deleted; applications, resumes, statuses and notifications stay intact.
-14. Administrators are deactivated (`isActive: false`), never deleted; they cannot log in and existing tokens stop working on the next request.
-15. A Super Admin cannot deactivate themselves, and the last active Super Admin cannot be deactivated.
-16. No eligibility or placement-policy engine: eligibility text is informational; students can apply to many companies even after being selected elsewhere.
-
----
-
-## Architecture explanation
-
-### Request flow
-
-```
-Browser (React) ── Axios (adds Authorization: Bearer <jwt>) ──▶ Express
-   Route  →  auth (who?)  →  requireRole (allowed?)  →  [multer]  →  Controller  →  Mongoose model
-                                                                       │
-                                                       throw httpError(status, message)
-                                                                       ▼
-                                                  errorHandler → { success:false, message }
-```
-
-- **Authentication** (`middleware/auth.js`): reads the Bearer token, verifies it with `JWT_SECRET`, then loads the user from MongoDB to make sure the account is still active and to take the role from the database, not the token. Sets `req.user = { id, role }`.
-- **Authorization** (`middleware/requireRole.js`): a tiny factory that returns 403 when `req.user.role` is not in the allowed list. Ownership checks (own application, own notification) are done in the controllers by comparing IDs with `req.user.id`.
-- **Never trust the client**: the applicant is always `req.user.id`; `role` and `isActive` in a profile update body are ignored; sort fields and status filters are validated against allow-lists.
-- **Express 5** forwards rejected promises to the error middleware, so controllers simply `throw httpError(404, "...")`. The error handler also maps Mongoose `CastError` → 400, duplicate key `11000` → 409, `ValidationError` → 400, Multer errors → 400 and hides stack traces.
-
-### Database design
-
-```
-User (STUDENT | ADMIN | SUPER_ADMIN)
-  │ 1..n                              Company (OPEN | CLOSED, createdBy → User)
-  ▼                                      ▲ 1..n
-Application { student → User, company → Company, resume{...}, status }
-              unique index (student, company)
-Notification { user → User, company → Company?, type, title, message, isRead }
-```
-
-Application is a separate collection instead of an array inside Company so it can be queried, indexed and paginated independently, and so the compound unique index can enforce "one application per student per company". `populate()` joins the referenced documents when the API needs student or company details.
-
-### Frontend
-
-- `AuthContext` keeps the current user; on load it calls `/auth/me` to validate the saved token (stored in `localStorage` for this educational project).
-- `ProtectedRoute` redirects by authentication state and role. This is only for navigation; the backend enforces everything again.
-- `ThemeContext` sets `data-theme` on `<html>`; every colour in the CSS is a variable defined per theme, so dark mode is a designed palette rather than an inversion.
-- `useNotifications` is created once in `AppLayout` and shared with the bell, the dropdown and the Notifications page via the router outlet context. It refetches on load, when the bell opens and after actions.
-- Search / filter / sort on the applicants page are sent as query parameters; the company list search is done client-side because the list is already loaded.
+1. Student emails must end in `@iiits.in`, enforced by the server.
+2. Registration always creates a STUDENT; only a Super Admin can create administrators.
+3. One application per student per company, enforced by a unique index.
+4. Withdrawing is allowed only while the status is Applied, and you cannot re-apply afterwards.
+5. The deadline and company status are checked on the server, so a stale page cannot bypass them.
+6. Status moves Applied → Shortlisted → Selected, or → Rejected. Nothing moves once final.
+7. Company updates reach only active applicants, never rejected or withdrawn ones.
+8. Companies are closed, never deleted, so placement history survives.
+9. Administrators are deactivated, never deleted. You cannot deactivate yourself or the last
+   active Super Admin.
+10. No eligibility engine: the admin sees the CGPA and decides. Students may apply to many
+    companies, including after being selected elsewhere.
 
 ---
 
@@ -285,71 +233,20 @@ Application is a separate collection instead of an array inside Company so it ca
 cd server && npm test
 ```
 
-`tests/api.test.js` boots the Express app on a random port with an in-memory MongoDB and walks through the whole checklist: registration rules, login (wrong password, wrong tab, inactive account, forged token), profile limits, super-admin management (self / last-super-admin protection), company CRUD and authorization, applying (PDF only, size limit, wrong password, duplicates, deadline, closed company), withdrawal rules, status transitions with notifications, applicant search / filter / sort validation, company updates reaching only active applicants, and notification ownership.
-
----
-
-## Interview talking points
-
-- Why JWT + bcrypt, and why the role comes from the DB on every request
-- Authentication vs authorization middleware
-- Compound unique index vs "check then insert"
-- Multer disk storage, MIME + extension validation, deleting orphan files
-- Why Application is its own collection (many-to-many through a join collection)
-- Status lifecycle and where transitions are enforced
-- REST design, consistent JSON envelope, HTTP status codes
-- Centralized error handling in Express 5
-- Query-parameter validation with allow-lists (no arbitrary sort fields)
-- CSS variables for theming, React context for auth/theme/toasts, route guards as UX only
+37 end-to-end tests run the real Express app against a temporary in-memory MongoDB. They cover
+registration rules, login with a forged token, role permissions, the deadline and duplicate
+guards, file type and size limits, withdrawal rules, status transitions, applicant search and
+sort validation, notification targeting and ownership checks.
 
 ---
 
 ## Deployment
 
-The two halves deploy separately:
+| Part | Host | Notes |
+| ---- | ---- | ----- |
+| API | Render web service | Root directory `server`, health check `/api/health` |
+| Frontend | Vercel | Root directory `client`, build `npm run build` |
+| Database | MongoDB Atlas | Network access must allow the API to connect |
 
-| Half | Host | What it runs |
-| ---- | ---- | ------------ |
-| API (`server/`) | Render web service | `npm start` &rarr; `server.js`, health check at `/api/health` |
-| Frontend (`client/`) | Vercel | `npm run build` &rarr; static files in `dist/` |
-| Database | MongoDB Atlas | the four collections plus `storedfiles` |
-
-`render.yaml` at the repository root describes the API service, so Render can create it
-from a Blueprint instead of manual dashboard steps.
-
-### Environment variables in production
-
-On **Render** (the API):
-
-| Variable | Value |
-| -------- | ----- |
-| `MONGO_URI` | the Atlas connection string, including the database name |
-| `JWT_SECRET` | a long random string (Render can generate it) |
-| `JWT_EXPIRES_IN` | `1d` |
-| `CLIENT_URL` | the Vercel origin, e.g. `https://placementhub.vercel.app` (comma-separate to allow several) |
-| `NODE_ENV` | `production` |
-
-On **Vercel** (the frontend):
-
-| Variable | Value |
-| -------- | ----- |
-| `VITE_API_URL` | the Render origin plus `/api`, e.g. `https://placementhub-api.onrender.com/api` |
-
-`VITE_API_URL` is read at **build time**, so changing it needs a redeploy, not just a restart.
-
-### Two things that will bite you
-
-1. **Atlas network access.** Render does not give a free service a fixed IP, so Atlas must
-   allow `0.0.0.0/0` under Network Access, or the API cannot connect.
-2. **Free Render services sleep** after 15 minutes of inactivity, and the next request takes
-   roughly 40 seconds to wake the service. Open the link a minute before you demo it.
-
-### Seeding the deployed database
-
-Run the seed scripts locally with `MONGO_URI` pointing at the production database:
-
-```bash
-cd server
-MONGO_URI="<atlas uri>" npm run seed:superadmin   # creates only the super admin
-MONGO_URI="<atlas uri>" npm run seed              # sample data, WIPES the database first
-```
+`render.yaml` describes the API service so Render can create it from a Blueprint. `VITE_API_URL`
+is read at **build time**, so changing it needs a redeploy rather than a restart.
