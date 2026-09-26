@@ -39,7 +39,7 @@ The code is intentionally simple: **Routes → Middleware → Controllers → Mo
 | Frontend | React 19, React Router 7, Axios, lucide-react icons, plain CSS    |
 | Backend  | Node.js, Express 5, Mongoose 9, MongoDB                          |
 | Auth     | JSON Web Tokens (access token), bcrypt password hashing          |
-| Uploads  | Multer (PDF only, 5 MB max, generated file names)                |
+| Uploads  | Multer in memory, PDF bytes stored in MongoDB (5 MB max)         |
 | Tests    | Node's built-in test runner + `mongodb-memory-server` (dev only) |
 
 No sockets, Redis, Redux, GraphQL, email or payment services.
@@ -56,16 +56,15 @@ Project1/
 │   ├── seed.js                 # Development seed data (npm run seed)
 │   ├── dev-memory.js           # Run API + seed on an in-memory MongoDB (npm run dev:memory)
 │   ├── config/db.js            # mongoose.connect
-│   ├── models/                 # User, Company, Application, Notification
+│   ├── models/                 # User, Company, Application, Notification, StoredFile
 │   ├── middleware/
 │   │   ├── auth.js             # Verifies JWT, loads user, sets req.user = { id, role }
 │   │   ├── requireRole.js      # requireRole("ADMIN", "SUPER_ADMIN")
-│   │   ├── upload.js           # Multer config for resumes
+│   │   ├── upload.js           # Multer (memory) + save/copy/send a PDF in MongoDB
 │   │   └── errorHandler.js     # 404 + central error → { success:false, message }
 │   ├── controllers/            # One file per resource; all business rules live here
 │   ├── routes/                 # URL → middleware chain → controller
 │   ├── utils/                  # httpError() helper and small validators
-│   ├── uploads/resumes/        # Uploaded PDFs (git-ignored)
 │   └── tests/api.test.js       # End-to-end API tests (33 tests)
 └── client/
     ├── vite.config.js          # Dev proxy: /api → http://localhost:5000
@@ -226,7 +225,7 @@ There is no Super Admin login tab; Super Admins use the Admin tab. The backend r
 4. A withdrawn application still occupies that index, so the student cannot apply again.
 5. Applications are rejected by the backend when the company is CLOSED or `now >= applicationDeadline`, even if a stale page still shows *Apply Now*.
 6. Applying requires a PDF resume (MIME type + extension checked, 5 MB max, generated file name) **and** the student's password re-entered. If any check fails the uploaded file is deleted.
-7. The resume belongs to the application, not the student. Different companies can receive different resumes.
+7. The resume belongs to the application, not the student. Applying copies the stored PDF, so deleting a resume from the profile later never touches a submitted application. Uploaded PDFs live in the `storedfiles` collection in MongoDB, not on the server disk, so they survive a restart on a host with an ephemeral filesystem.
 8. Status transitions: `APPLIED → SHORTLISTED → SELECTED`, `APPLIED/SHORTLISTED → REJECTED`, `APPLIED → WITHDRAWN` (student only). Anything else is 400.
 9. Every admin status change stores an APPLICATION_STATUS notification for that student.
 10. Creating a company stores a NEW_COMPANY notification for every active student.
@@ -302,3 +301,55 @@ cd server && npm test
 - Centralized error handling in Express 5
 - Query-parameter validation with allow-lists (no arbitrary sort fields)
 - CSS variables for theming, React context for auth/theme/toasts, route guards as UX only
+
+---
+
+## Deployment
+
+The two halves deploy separately:
+
+| Half | Host | What it runs |
+| ---- | ---- | ------------ |
+| API (`server/`) | Render web service | `npm start` &rarr; `server.js`, health check at `/api/health` |
+| Frontend (`client/`) | Vercel | `npm run build` &rarr; static files in `dist/` |
+| Database | MongoDB Atlas | the four collections plus `storedfiles` |
+
+`render.yaml` at the repository root describes the API service, so Render can create it
+from a Blueprint instead of manual dashboard steps.
+
+### Environment variables in production
+
+On **Render** (the API):
+
+| Variable | Value |
+| -------- | ----- |
+| `MONGO_URI` | the Atlas connection string, including the database name |
+| `JWT_SECRET` | a long random string (Render can generate it) |
+| `JWT_EXPIRES_IN` | `1d` |
+| `CLIENT_URL` | the Vercel origin, e.g. `https://placementhub.vercel.app` (comma-separate to allow several) |
+| `NODE_ENV` | `production` |
+
+On **Vercel** (the frontend):
+
+| Variable | Value |
+| -------- | ----- |
+| `VITE_API_URL` | the Render origin plus `/api`, e.g. `https://placementhub-api.onrender.com/api` |
+
+`VITE_API_URL` is read at **build time**, so changing it needs a redeploy, not just a restart.
+
+### Two things that will bite you
+
+1. **Atlas network access.** Render does not give a free service a fixed IP, so Atlas must
+   allow `0.0.0.0/0` under Network Access, or the API cannot connect.
+2. **Free Render services sleep** after 15 minutes of inactivity, and the next request takes
+   roughly 40 seconds to wake the service. Open the link a minute before you demo it.
+
+### Seeding the deployed database
+
+Run the seed scripts locally with `MONGO_URI` pointing at the production database:
+
+```bash
+cd server
+MONGO_URI="<atlas uri>" npm run seed:superadmin   # creates only the super admin
+MONGO_URI="<atlas uri>" npm run seed              # sample data, WIPES the database first
+```
