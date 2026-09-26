@@ -123,12 +123,24 @@ export default function ProfilePage() {
                       <FileText size={17} />
                     </span>
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      <div className="resume-label">{resume.label}</div>
+                      <div className="resume-label">
+                        {resume.label}
+                        {resume.available === false && <span className="badge badge-warning" style={{ marginLeft: 8 }}>File missing</span>}
+                      </div>
                       <div className="resume-meta">
-                        {resume.originalName} · {formatSize(resume.size)} · Uploaded {formatDate(resume.uploadedAt)}
+                        {resume.available === false
+                          ? "Uploaded before the file storage change, so the PDF is gone. Delete it and upload again."
+                          : `${resume.originalName} · ${formatSize(resume.size)} · Uploaded ${formatDate(resume.uploadedAt)}`}
                       </div>
                     </div>
-                    <button type="button" className="icon-btn" title="Download" onClick={() => downloadSavedResume(resume).catch(() => toast.error("Could not download the resume."))}>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      title={resume.available === false ? "This PDF is no longer available" : "Download"}
+                      disabled={resume.available === false}
+                      style={resume.available === false ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
+                      onClick={() => downloadSavedResume(resume).catch(() => toast.error("Could not download the resume."))}
+                    >
                       <Download size={17} />
                     </button>
                     <button type="button" className="icon-btn" title="Delete" style={{ color: "var(--danger)" }} onClick={() => setDeleteTarget(resume)}>

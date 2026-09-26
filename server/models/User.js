@@ -11,7 +11,8 @@ const resumeSchema = new mongoose.Schema(
     label: { type: String, required: true, trim: true },
     // originalName and size are duplicated here so the profile list needs no extra lookup
     originalName: { type: String, required: true },
-    file: { type: mongoose.Schema.Types.ObjectId, ref: "StoredFile", required: true },
+    // Not required: records created before PDFs moved into the database have no file.
+    file: { type: mongoose.Schema.Types.ObjectId, ref: "StoredFile", default: null },
     size: { type: Number, default: 0 },
     uploadedAt: { type: Date, default: Date.now },
   },
@@ -66,6 +67,8 @@ userSchema.methods.toSafeObject = function () {
       originalName: r.originalName,
       size: r.size,
       uploadedAt: r.uploadedAt,
+      // false for a resume uploaded before PDFs moved into the database
+      available: Boolean(r.file),
     })),
     isActive: this.isActive,
     createdAt: this.createdAt,

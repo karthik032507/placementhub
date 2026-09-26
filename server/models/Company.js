@@ -22,7 +22,7 @@ const companySchema = new mongoose.Schema(
     jobDescriptionFile: {
       type: {
         originalName: { type: String, required: true },
-        file: { type: mongoose.Schema.Types.ObjectId, ref: "StoredFile", required: true },
+        file: { type: mongoose.Schema.Types.ObjectId, ref: "StoredFile", default: null },
         size: { type: Number, default: 0 },
         uploadedAt: { type: Date, default: Date.now },
       },

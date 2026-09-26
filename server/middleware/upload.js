@@ -36,6 +36,7 @@ async function saveUploadedFile(file) {
 // Duplicates an existing stored file. Applying to a company copies the PDF so that
 // deleting the resume from a profile later cannot break a submitted application.
 async function copyStoredFile(fileId) {
+  if (!fileId) throw httpError(404, "The stored file is no longer available.");
   const source = await StoredFile.findById(fileId).select("+data");
   if (!source) throw httpError(404, "The stored file is no longer available.");
   const copy = await StoredFile.create({
@@ -55,6 +56,7 @@ async function deleteStoredFile(fileId) {
 
 // Streams a stored PDF back to the browser as a download.
 async function sendStoredFile(res, fileId, downloadName) {
+  if (!fileId) throw httpError(404, "This file is no longer available.");
   const stored = await StoredFile.findById(fileId).select("+data");
   if (!stored) throw httpError(404, "File is no longer available on the server.");
 

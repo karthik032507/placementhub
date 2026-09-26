@@ -17,7 +17,8 @@ function formatSize(bytes) {
 // Three steps: 1) pick a saved resume or upload one  2) confirm with password  3) success
 export default function ApplyModal({ company, onClose, onApplied }) {
   const { user, setUser } = useAuth();
-  const savedResumes = user.resumes || [];
+  // A resume uploaded before PDFs moved into the database has no file to send.
+  const savedResumes = (user.resumes || []).filter((r) => r.available !== false);
 
   const [step, setStep] = useState(1);
   // "saved:<id>" or "new"
